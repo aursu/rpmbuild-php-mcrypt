@@ -1,0 +1,35 @@
+language: minimal
+
+services:
+  - docker
+
+addons:
+  apt:
+    packages:
+      - docker-ce
+
+env:
+  global:
+    - PACKAGE_VCS_URL=https://github.com/aursu/rpmbuild-php-mcrypt
+  jobs:
+    - BUILD_COMPOSE_FILE=docker-compose.yml BINTRAY_REPO=php73custom BUILD=centos7mcrypt UPLOADER=centos7bintray
+    - BUILD_COMPOSE_FILE=docker-compose.yml BINTRAY_REPO=php73custom BUILD=centos8mcrypt UPLOADER=centos8bintray
+    - BUILD_COMPOSE_FILE=docker-compose.php74.yml BINTRAY_REPO=php74custom BUILD=centos7mcryptphp74 UPLOADER=centos7bintray
+    - BUILD_COMPOSE_FILE=docker-compose.php74.yml BINTRAY_REPO=php74custom BUILD=centos8mcryptphp74 UPLOADER=centos8bintray
+
+install: skip
+
+before_script:
+  - docker-compose -f ${BUILD_COMPOSE_FILE} build --no-cache ${BUILD}
+
+script:
+  - docker-compose -f ${BUILD_COMPOSE_FILE} up --exit-code-from ${BUILD} ${BUILD}
+
+before_deploy:
+  - docker-compose -f rpmbuild/docker-compose.bintray.yml pull ${UPLOADER}
+
+deploy:
+  provider: script
+  script: docker-compose -f rpmbuild/docker-compose.bintray.yml run --rm -e BINTRAY_USER=$BINTRAY_USER -e BINTRAY_API_KEY=$BINTRAY_API_KEY -e BINTRAY_REPO=$BINTRAY_REPO -e PACKAGE_VCS_URL=$PACKAGE_VCS_URL ${UPLOADER}
+  on:
+    all_branches: true
